@@ -1,0 +1,17 @@
+manifest:
+  self:
+    west-commands: scripts/west-commands.yml
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      repo-path: zephyr
+      revision: v4.3.0
+      remote: zephyrproject-rtos
+      import: true
+
+  self:
+    path: dm-modbus-can-temp-monitor-frdm

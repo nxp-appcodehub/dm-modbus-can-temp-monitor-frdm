@@ -1,0 +1,63 @@
+
+
+/ {
+    chosen {
+        zephyr,canbus = &flexcan_0;
+    };
+};
+
+&pinctrl {
+    flexcan0_default: flexcan0_default {
+        group1 {
+            pinmux = <PTA6_CAN0_RX>;
+            slew-rate = "fastest";
+            input-enable;
+        };
+        group2 {
+            pinmux = <PTA7_CAN0_TX>;
+            slew-rate = "fastest";
+            output-enable;
+        };
+    };
+    
+    pinmux_lpuart2: pinmux_lpuart2 {
+        group0 {
+            pinmux = <PTD17_LPUART2_RX>,
+                     <PTE12_LPUART2_TX_O>;
+            slew-rate = "fastest";
+            input-enable;
+        };
+    };
+};
+
+&flexcan_0 {
+    status = "okay";
+    bitrate = <500000>;
+    sample-point = <875>;
+
+	pinctrl-0 = <&flexcan0_default>;
+    pinctrl-names = "default";
+
+	
+    can-transceiver {
+		compatible = "nxp,tja1057";
+    	max-bitrate = <1000000>;
+    };
+};
+
+
+&lpuart_2 {
+    status = "okay";
+    current-speed = <9600>;
+
+	pinctrl-0 = <&pinmux_lpuart2>;
+    pinctrl-names = "default";
+
+    modbus0: modbus {
+        compatible = "zephyr,modbus-serial";
+        status = "okay";
+
+		de-gpios = <&gpiob_h 7 GPIO_ACTIVE_HIGH>;
+		label = "Transmit_Modbus_Pin";
+    };
+};

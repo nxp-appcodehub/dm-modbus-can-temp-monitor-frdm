@@ -1,0 +1,11 @@
+/Debug
+/debug
+/Release
+/release
+*.launch
+*.jlink
+/__repo__
+/.vscode
+mcux_include.json
+Kconfig
+sample.yml

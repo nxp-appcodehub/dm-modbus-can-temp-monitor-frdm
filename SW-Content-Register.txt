@@ -1,0 +1,14 @@
+Release Name:           dm-modbus-can-temp-monitor-frdm
+Release Version:        1.0
+Outgoing License:       Apache-2.0
+license in files:       License.txt
+Description:            This is zephyr application where combine two boards, two Mikroe modules and 
+                        two modules with Modbus. Here is some industrial example for PLC or peripherals 
+                        of PLC. In this case FRDM-MCXE31B use modbus zephyr stack and Mikroe RS485 
+                        click for read temperature and control display that shows temperature measure, 
+                        also uses CAN as communication with FRDM-MCXA156 to control Mikroe Relay 5 Click.
+Release location:       https://github.com/nxp-appcodehub/dm-modbus-can-temp-monitor-frdm
+Origin:                 NXP (Apache-2.0)
+                        NXP (BSD-3-Clause)
+                        Zephyr Project v4.3.0 (Apache-2.0) - https://github.com/zephyrproject-rtos/zephyr
+

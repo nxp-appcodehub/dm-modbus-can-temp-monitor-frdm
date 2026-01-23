@@ -1,0 +1,38 @@
+
+/ {
+    chosen {
+        zephyr,canbus = &flexcan0;
+    };
+    aliases
+    {
+      rstgpio = &MikroeReset;
+    };
+    user_signals: user_signal
+    {
+        compatible = "gpio-keys";
+        
+        MikroeReset:rstGPIO
+        {
+            gpios = <&gpio3 29 GPIO_ACTIVE_LOW>;
+            label = "RESET_GPIO";
+        };
+    };
+};
+
+
+&flexcan0 {
+    status = "okay";
+    bitrate = <500000>;
+    sample-point = <875>;
+
+    can-transceiver {
+		compatible = "nxp,tja1057";
+    	max-bitrate = <1000000>;
+    };
+};
+
+&lpi2c3
+{
+    status = "okay";
+    clock-frequency = <I2C_BITRATE_FAST>;
+};
