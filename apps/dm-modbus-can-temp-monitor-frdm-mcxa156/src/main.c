@@ -20,6 +20,14 @@
 #define RX_THREAD_PRIORITY 2
 
 #define RELAY_STATE_MSG_ID 0x10
+
+
+typedef struct _can_relay_states_t
+{
+	uint8_t relay_1;
+	uint8_t relay_2;
+	uint8_t relay_3;
+} can_relay_states_t;
 // ------------------------------------------
 
 // Threads ----------------------------------
@@ -37,13 +45,15 @@ const struct gpio_dt_spec rst_gpio_dev = GPIO_DT_SPEC_GET(DT_ALIAS(rstgpio), gpi
 // ------------------------------------------
 
 // Application ------------------------------
-static uint8_t g_relay_state = 0.0;
+static can_relay_states_t *g_can_relay_states = 0;
 static uint8_t g_relay_state_update = 0;
 // ------------------------------------------
 
 // CAN Reception queue ----------------------
 CAN_MSGQ_DEFINE(relay_state_msgq, 2);
 // ------------------------------------------
+
+
 
 int32_t relay_i2c_transfer_function(relay_i2c_option_t option, uint8_t address, uint8_t subaddress,uint8_t* buff, uint32_t len)
 {
@@ -152,8 +162,10 @@ int main(void)
 		if(g_relay_state_update)
 		{
 			g_relay_state_update = 0;
-			printf("State received: %d\r\n", g_relay_state);
-			states.relay_0 = (g_relay_state)? k_relay_on:k_relay_off;
+			printf("States received: %d,%d,%d\r\n", g_can_relay_states->relay_1, g_can_relay_states->relay_2, g_can_relay_states->relay_3);
+			states.relay_0 = (g_can_relay_states->relay_1)? k_relay_on:k_relay_off;
+			states.relay_1 = (g_can_relay_states->relay_2)? k_relay_on:k_relay_off;
+			states.relay_2 = (g_can_relay_states->relay_3)? k_relay_on:k_relay_off;
 			relay5click_set_states(states);
 		}
 		k_msleep(500);
@@ -175,6 +187,7 @@ void rx_thread(void *arg1, void *arg2, void *arg3)
 		.mask = CAN_EXT_ID_MASK
 	};
 
+	g_can_relay_states = (can_relay_states_t*)frame.data;
 	filter_id = can_add_rx_filter_msgq(can_dev, &relay_state_msgq, &filter);
 	printf("Relay state filter id: %d\r\n", filter_id);
 
@@ -189,7 +202,6 @@ void rx_thread(void *arg1, void *arg2, void *arg3)
 			continue;
 		}
 
-		g_relay_state = (uint8_t)(*((uint16_t*)frame.data));
 		g_relay_state_update = 1;
 	}
 }

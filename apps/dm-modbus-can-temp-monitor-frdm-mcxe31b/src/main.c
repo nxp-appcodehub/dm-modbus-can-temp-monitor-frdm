@@ -22,7 +22,7 @@
 #include "fsl_clock.h"
 
 // Definitions ------------------------------
-#define INPUT_THRESHOLD_THREAD_STACK_SIZE 256
+#define INPUT_THRESHOLD_THREAD_STACK_SIZE 512
 #define INPUT_THRESHOLD_THREAD_PRIORITY 2
 
 #define STATE_RELAY_MSG_ID 0x10
@@ -32,6 +32,18 @@
 #define DISPLAY_ID			0x01
 
 #define DEFAULT_THRESHOLD 25.0
+#define HYSTERESIS_UP     1.5
+#define HYSTERESIS_DOWN   1.5
+
+K_SEM_DEFINE(sem_thld, 1, 1)
+
+
+typedef struct _can_relay_states_t
+{
+	uint8_t relay_1;
+	uint8_t relay_2;
+	uint8_t relay_3;
+} can_relay_states_t;
 // ------------------------------------------
 
 // Threads ----------------------------------
@@ -74,12 +86,14 @@ int main(void)
 	int32_t stat;
 	uint16_t buff[2];
 	float temp;
+	can_relay_states_t *relay_states = 0;
 
 	struct can_frame state_relay_frame = {
 		.flags = CAN_FRAME_IDE,
 		.id = STATE_RELAY_MSG_ID,
 		.dlc = 2
 	};
+	relay_states = (can_relay_states_t*)state_relay_frame.data;
 
 	printk("-------- Modbus CAN FRDM-MCXE31B --------\n\r");
 
@@ -108,7 +122,7 @@ int main(void)
 
 	// Check if device is initialized --------------------------
 	if (!device_is_ready(can_dev)) {
-		printf("CAN: Device %s not ready.\n", can_dev->name);
+		printk("CAN: Device %s not ready.\n", can_dev->name);
 		return 0;
 	}
 	// ---------------------------------------------------------
@@ -116,7 +130,7 @@ int main(void)
 	// Set CAN mode --------------------------------------------
 	stat = can_set_mode(can_dev, CAN_MODE_NORMAL);
 	if (stat != 0) {
-		printf("Error setting CAN mode [%d]", stat);
+		printk("Error setting CAN mode [%d]", stat);
 		return 0;
 	}
 	// ---------------------------------------------------------
@@ -124,7 +138,7 @@ int main(void)
 	// Start CAN -----------------------------------------------
 	stat = can_start(can_dev);
 	if (stat != 0) {
-		printf("Error starting CAN controller [%d]", stat);
+		printk("Error starting CAN controller [%d]", stat);
 		return 0;
 	}
 	// ---------------------------------------------------------
@@ -141,11 +155,17 @@ int main(void)
 					INPUT_THRESHOLD_THREAD_PRIORITY, 0,
 					K_NO_WAIT);
 	if (!get_state_tid) {
-		printf("ERROR spawning poll_state_thread\n");
+		printk("ERROR spawning poll_state_thread\n");
 	}
 	// ---------------------------------------------------------
 
-	printf("Finished init.\n");
+	printk("Finished init.\n");
+	// Default state -------------------------------------------
+	relay_states->relay_1 = 1;
+	relay_states->relay_2 = 0;
+	relay_states->relay_3 = 0;
+	can_send(can_dev, &state_relay_frame, K_MSEC(100), NULL, NULL);
+	// ---------------------------------------------------------
 
 	while (1)
 	{
@@ -154,14 +174,28 @@ int main(void)
 		if(!stat)
 		{
 			temp = ((float)buff[0])/((float)10);
-			printf("Temperature: %.1f\n\r", (double)temp);
+			printk("Temperature: %.1f\n\r", (double)temp);
 			modbus_write_holding_reg(client_iface, DISPLAY_ID, 0x0000, (uint16_t)(temp*100));
-			*((uint16_t*)(state_relay_frame.data)) = (temp > g_threshold)? 1:0;
+			
+			k_sem_take(&sem_thld, K_FOREVER);
+			if(temp > (g_threshold+(float)HYSTERESIS_UP))
+			{
+				relay_states->relay_1 = 1;
+				relay_states->relay_2 = 0;
+				relay_states->relay_3 = 0;
+			}
+			else if(temp < (g_threshold-(float)HYSTERESIS_DOWN))
+			{
+				relay_states->relay_1 = 0;
+				relay_states->relay_2 = 1;
+				relay_states->relay_3 = 0;
+			}
+			k_sem_give(&sem_thld);
 			can_send(can_dev, &state_relay_frame, K_MSEC(100), NULL, NULL);
 		}
 		else
 		{
-			printf("Error reading temperature sensor\n\r");
+			printk("Error reading temperature sensor\n\r");
 			modbus_write_holding_reg(client_iface, DISPLAY_ID, 0x0000, 0000);
 			*((uint16_t*)(state_relay_frame.data)) = 0;
 			can_send(can_dev, &state_relay_frame, K_MSEC(100), NULL, NULL);
@@ -169,6 +203,7 @@ int main(void)
 		k_msleep(2000);
 	}
 }
+
 
 void input_threshold_thread(void *arg1, void *arg2, void *arg3)
 {
@@ -183,28 +218,30 @@ void input_threshold_thread(void *arg1, void *arg2, void *arg3)
 
 		if(index >= 5)
 		{
-			printf("\n\rInvalid data\n\r");
+			printk("\n\rInvalid data\n\r");
 			index = 0;
 		}
 		else
 		{
 			if(character == '\n' || character == '\r')
 			{
+				k_sem_take(&sem_thld, K_FOREVER);
 				if(sscanf(buff, "%f", &g_threshold) > 0)
 				{
-					printf("New Threshold: %.1f\n\r", (double)g_threshold);
+					printk("New Threshold: %.1f\n\r", (double)g_threshold);
 				}
 				else
 				{
-					printf("Threshold: %.1f\n\r", (double)g_threshold);
+					printk("Threshold: %.1f\n\r", (double)g_threshold);
 				}
+				k_sem_give(&sem_thld);
 				index = 0;
 			}
 			else
 			{
 				buff[index++] = character;
 				buff[index] = 0;
-				printf("Set threshold: %s\n\r", buff);
+				printk("Set threshold: %s\n\r", buff);
 			}
 		}
 		k_msleep(100);

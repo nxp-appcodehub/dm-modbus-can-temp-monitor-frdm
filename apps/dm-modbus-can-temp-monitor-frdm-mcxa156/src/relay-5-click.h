@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 NXP
+ * Copyright 2024, 2026 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -25,9 +25,9 @@ typedef enum _relay_i2c_option_t
 
 typedef enum _relay_t
 {
-	k_relay_0,
+	k_relay_2,
 	k_relay_1,
-	k_relay_2
+	k_relay_0
 } relay_t;
 
 
